@@ -1,0 +1,24 @@
+# This is used to login to sd2.bluelinksmartconnect.com
+username: user@example.org
+password: password
+
+# We use the same program every day, but this can easily be modified to better
+# suit your needs.
+normal_program:
+  sunday: &default_program
+    morning: { time: 7h, heat: 21, cool: 24 }
+    day:     { time: 9h, heat: 21, cool: 24 }
+    evening: { time: 16h, heat: 21, cool: 24 }
+    night:   { time: 21h, heat: 20, cool: 25 }
+  monday: *default_program
+  tuesday: *default_program
+  wednesday: *default_program
+  thursday: *default_program
+  friday: *default_program
+  saturday: *default_program
+
+# For peak periods, pre-heat 1C more for 1h, and go -1C during the period.
+peak_program:
+  pre_heat_duration: 1h
+  pre_heat_temp_offset: 1
+  peak_temp_offset: -1

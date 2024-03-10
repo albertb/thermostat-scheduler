@@ -1,0 +1,11 @@
+# Define the normal peak events boundaries ahead of time so we can refer to
+# them later in the file.
+- { events: &morning [ { start: "6h", end: "9h" } ] }
+- { events: &evening [ { start: "16h", end: "20h" } ] }
+- { events: &both [ { start: "6h", end: "9h" },
+                    { start: "16h", end: "20h" } ] }
+
+# List actual events here, e.g.,
+# - { date: 2020-01-01, events: *both }
+# - { date: 2020-01-02, events: *morning }
+# - { date: 2020-01-03, events: *evening }
