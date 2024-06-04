@@ -14,7 +14,7 @@ have: [BlueLink Model 7205](https://www.braeburnonline.com/products/thermostat/7
 
 I created this to handle periods of peak demand with Hydro-Québec. They have a
 special rate called [Winter Credit Option](https://www.hydroquebec.com/residential/customer-space/rates/winter-credit-option.html)
-wher they issue a small refund whenever you can reduce your electricity usage
+where they issue a small refund whenever you can reduce your electricity usage
 during periods of peak demand.
 
 ## Usage
