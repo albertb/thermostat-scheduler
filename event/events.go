@@ -1,8 +1,8 @@
-package client
+package event
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -24,25 +24,21 @@ type DailyPeakEvents struct {
 	Events []PeakEvent `yaml:"events"`
 }
 
-func GetPeakEvents(path string) ([]DailyPeakEvents, error) {
-	e := []DailyPeakEvents{}
+// Read and validate the peak events from reader.
+func ReadPeakEvents(reader io.Reader) ([]DailyPeakEvents, error) {
+	var events []DailyPeakEvents
 
-	file, err := ioutil.ReadFile(path)
+	err := yaml.NewDecoder(reader).Decode(&events)
 	if err != nil {
-		return e, err
+		return events, err
 	}
 
-	err = yaml.Unmarshal([]byte(file), &e)
+	err = validateDailyPeakEvents(events)
 	if err != nil {
-		return e, err
+		return events, err
 	}
 
-	err = validateDailyPeakEvents(e)
-	if err != nil {
-		return e, err
-	}
-
-	return e, nil
+	return events, nil
 }
 
 func validateDailyPeakEvents(events []DailyPeakEvents) error {

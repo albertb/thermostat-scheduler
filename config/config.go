@@ -1,9 +1,10 @@
-package client
+package config
 
 import (
 	"errors"
 	"fmt"
-	"os"
+	"io"
+	"thermostat-scheduler/api"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -16,6 +17,7 @@ type DayEvent struct {
 	Cool int           // The temperature to cool to.
 }
 
+// Copy other to this event.
 func (d *DayEvent) Copy(other DayEvent) {
 	d.Time = other.Time
 	d.Heat = other.Heat
@@ -39,6 +41,91 @@ type WeeklyProgram struct {
 	Thursday  DailyProgram
 	Friday    DailyProgram
 	Saturday  DailyProgram
+}
+
+// Returns the DailyProgram for the specified weekday.
+func (wp *WeeklyProgram) DailyProgramOn(weekday time.Weekday) *DailyProgram {
+	switch weekday {
+	case time.Sunday:
+		return &wp.Sunday
+	case time.Monday:
+		return &wp.Monday
+	case time.Tuesday:
+		return &wp.Tuesday
+	case time.Wednesday:
+		return &wp.Wednesday
+	case time.Thursday:
+		return &wp.Thursday
+	case time.Friday:
+		return &wp.Friday
+	case time.Saturday:
+		return &wp.Saturday
+	}
+	return nil
+}
+
+// Returns the DailyProgram for the day before the one specified.
+func (wp *WeeklyProgram) DailyProgramBefore(weekday time.Weekday) *DailyProgram {
+	previousWeekday := time.Weekday((int(weekday) + 7 - 1) % 7)
+	return wp.DailyProgramOn(previousWeekday)
+}
+
+// Returrns the DailyProgram for the day after the one specified.
+func (wp *WeeklyProgram) DailyProgramAfter(weekday time.Weekday) *DailyProgram {
+	nextWeekday := time.Weekday((int(weekday) + 7 + 1) % 7)
+	return wp.DailyProgramOn(nextWeekday)
+}
+
+// Returns the DayEvent on the specified |weekday| that comes before |when|. Fallback
+// to the previous day's night event if there are no programs before |when| on |weekday|.
+func (wp *WeeklyProgram) DayEventBefore(weekday time.Weekday, when time.Duration) DayEvent {
+	dp := wp.DailyProgramOn(weekday)
+	if dp.Night.Time <= when {
+		return dp.Night
+	}
+	if dp.Evening.Time <= when {
+		return dp.Evening
+	}
+	if dp.Day.Time <= when {
+		return dp.Day
+	}
+	if dp.Morning.Time <= when {
+		return dp.Morning
+	}
+
+	// Fallback to the previous day's night program.
+	dp = wp.DailyProgramBefore(weekday)
+	return DayEvent{
+		Time: 0,
+		Heat: dp.Night.Heat,
+		Cool: dp.Night.Cool,
+	}
+}
+
+// Returns the DayEvent on the specified |weekday| that comes after |when|. Fallback
+// to the next day's morning event if there are no programs after |when| on |weekday|.
+func (wp *WeeklyProgram) DayEventAfter(weekday time.Weekday, when time.Duration) DayEvent {
+	dp := wp.DailyProgramOn(weekday)
+	if dp.Morning.Time >= when {
+		return dp.Morning
+	}
+	if dp.Day.Time >= when {
+		return dp.Day
+	}
+	if dp.Evening.Time >= when {
+		return dp.Evening
+	}
+	if dp.Night.Time >= when {
+		return dp.Night
+	}
+
+	// Fallback to the next day's morning event.
+	dp = wp.DailyProgramAfter(weekday)
+	return DayEvent{
+		Time: when,
+		Heat: dp.Morning.Heat,
+		Cool: dp.Morning.Cool,
+	}
 }
 
 type PeakProgram struct {
@@ -79,15 +166,11 @@ type Config struct {
 	PeakProgram PeakProgram `yaml:"peak_program"`
 }
 
-func GetConfig(path string) (Config, error) {
-	c := Config{}
+// Read and validate the config from reader.
+func ReadConfig(reader io.Reader) (Config, error) {
+	var c Config
+	err := yaml.NewDecoder(reader).Decode(&c)
 
-	file, err := os.ReadFile(path)
-	if err != nil {
-		return c, err
-	}
-
-	err = yaml.Unmarshal([]byte(file), &c)
 	if err != nil {
 		return c, err
 	}
@@ -171,8 +254,9 @@ func validatePeakProgram(p PeakProgram) error {
 	return nil
 }
 
-func (wp WeeklyProgram) ToStateData() StateData {
-	return StateData{
+// Converts this WeeklyProgram to the API's StateData.
+func (wp WeeklyProgram) ToStateData() api.StateData {
+	return api.StateData{
 		Program1: wp.Monday.ToProgramString(),
 		Program2: wp.Tuesday.ToProgramString(),
 		Program3: wp.Wednesday.ToProgramString(),
@@ -183,6 +267,7 @@ func (wp WeeklyProgram) ToStateData() StateData {
 	}
 }
 
+// Returns the string that represents this DailyProgam in the API.
 func (dp DailyProgram) ToProgramString() string {
 	return dp.Morning.ToProgramHeatStringPart() +
 		dp.Day.ToProgramHeatStringPart() +
@@ -194,16 +279,14 @@ func (dp DailyProgram) ToProgramString() string {
 		dp.Night.ToProgramCoolStringPart()
 }
 
+// Returns the heat part of the DayEvent string.
 func (de DayEvent) ToProgramHeatStringPart() string {
 	start := time.Time{}.Add(de.Time)
-	return fmt.Sprintf("%02d", start.Hour()) +
-		fmt.Sprintf("%02d", start.Minute()) +
-		fmt.Sprintf("%03d", int(de.Heat*10))
+	return fmt.Sprintf("%02d%02d%03d", start.Hour(), start.Minute(), int(de.Heat*10))
 }
 
+// Returns the cool part of the DayEvent string.
 func (de DayEvent) ToProgramCoolStringPart() string {
 	start := time.Time{}.Add(de.Time)
-	return fmt.Sprintf("%02d", start.Hour()) +
-		fmt.Sprintf("%02d", start.Minute()) +
-		fmt.Sprintf("%03d", int(de.Cool*10))
+	return fmt.Sprintf("%02d%02d%03d", start.Hour(), start.Minute(), int(de.Cool*10))
 }
