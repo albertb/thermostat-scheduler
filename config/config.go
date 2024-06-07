@@ -64,13 +64,13 @@ func (wp *WeeklyProgram) DailyProgramOn(weekday time.Weekday) *DailyProgram {
 	return nil
 }
 
-// Returns the DailyProgram for the day before the one specified.
+// Returns the DailyProgram for the day before |weekday|.
 func (wp *WeeklyProgram) DailyProgramBefore(weekday time.Weekday) *DailyProgram {
 	previousWeekday := time.Weekday((int(weekday) + 7 - 1) % 7)
 	return wp.DailyProgramOn(previousWeekday)
 }
 
-// Returrns the DailyProgram for the day after the one specified.
+// Returns the DailyProgram for the day after |weekday|.
 func (wp *WeeklyProgram) DailyProgramAfter(weekday time.Weekday) *DailyProgram {
 	nextWeekday := time.Weekday((int(weekday) + 7 + 1) % 7)
 	return wp.DailyProgramOn(nextWeekday)

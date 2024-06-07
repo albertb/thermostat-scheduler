@@ -49,12 +49,14 @@ func Run(configReader io.Reader, eventsReader io.Reader, verbose, dryRun bool) e
 	}
 	device := devices[0]
 
-	if device.StateData != newStateData {
-		log.Printf("The thermostat program differs from the one that was computed:\n%v", cmp.Diff(device.StateData, newStateData))
-	} else if verbose {
-		log.Println("No changes required to the thermostat program.")
+	if device.StateData == newStateData {
+		if verbose {
+			log.Println("No changes required to the thermostat program.")
+		}
+		return nil
 	}
 
+	log.Printf("The thermostat program differs from the one that was computed:\n%v", cmp.Diff(device.StateData, newStateData))
 	if dryRun {
 		log.Println("Dry-run; exiting early without any modifications.")
 		return nil
