@@ -2,8 +2,8 @@ package program
 
 import (
 	"testing"
-	"thermostat-scheduler/config"
-	"thermostat-scheduler/event"
+	"thermostat-scheduler/internal/config"
+	"thermostat-scheduler/internal/event"
 	"time"
 )
 

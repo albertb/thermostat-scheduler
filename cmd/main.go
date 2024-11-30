@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"thermostat-scheduler/app"
+	"thermostat-scheduler/internal/app"
 )
 
 var verbose = flag.Bool("verbose", false, "whether to print verbose output")

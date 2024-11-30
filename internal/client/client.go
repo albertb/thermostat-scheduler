@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"thermostat-scheduler/api"
+	"thermostat-scheduler/internal/api"
 	"time"
 )
 
