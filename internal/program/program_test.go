@@ -3,7 +3,7 @@ package program
 import (
 	"testing"
 	"thermostat-scheduler/internal/config"
-	"thermostat-scheduler/internal/event"
+	"thermostat-scheduler/internal/events"
 	"time"
 )
 
@@ -29,15 +29,19 @@ func TestAssembleProgram(t *testing.T) {
 	}
 
 	// Peak events are on Jan 24, 6h to 9h, and 16h to 20h.
-	events := []event.DailyPeakEvents{
-		{Date: time.Date(2024, 1, 24, 0, 0, 0, 0, time.UTC),
-			Events: []event.PeakEvent{
-				{Start: 6 * time.Hour, End: 9 * time.Hour},
-				{Start: 16 * time.Hour, End: 20 * time.Hour}}},
+	events := []events.PeakEvent{
+		{
+			Start: parseTime(t, "Wed, 24 Jan 2024 06:00:00 EST"),
+			End:   parseTime(t, "Wed, 24 Jan 2024 09:00:00 EST"),
+		},
+		{
+			Start: parseTime(t, "Wed, 24 Jan 2024 16:00:00 EST"),
+			End:   parseTime(t, "Wed, 24 Jan 2024 20:00:00 EST"),
+		},
 	}
 
 	// It's 4h on the morning on the peak events.
-	now, _ := time.Parse(time.RFC1123, "Wed, 24 Jan 2024 04:00:00 EST")
+	now := parseTime(t, "Wed, 24 Jan 2024 04:00:00 EST")
 	program := AssembleProgram(cfg, now, events, false)
 
 	// Expect the current day's program to handle the morning peak period.
@@ -113,4 +117,12 @@ func TestAssembleProgram(t *testing.T) {
 	if program != cfg.NormalProgram {
 		t.Errorf("at time %v, want\n%v, got\n%v", now, expectedPeakProgram, program.Wednesday)
 	}
+}
+
+func parseTime(t *testing.T, timeStr string) time.Time {
+	parsedTime, err := time.Parse(time.RFC1123, timeStr)
+	if err != nil {
+		t.Fatalf("failed to parse time '%s': %v", timeStr, err)
+	}
+	return parsedTime
 }
