@@ -2,8 +2,8 @@ package program
 
 import (
 	"log"
-	"thermostat-scheduler/config"
-	"thermostat-scheduler/event"
+	"thermostat-scheduler/internal/config"
+	"thermostat-scheduler/internal/event"
 	"time"
 )
 

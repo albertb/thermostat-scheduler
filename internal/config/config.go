@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"thermostat-scheduler/api"
+	"thermostat-scheduler/internal/api"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -158,6 +158,10 @@ type PeakProgram struct {
 type Config struct {
 	Username string
 	Password string
+
+	// The official JSON of peak events from Hydro-Quebec.
+	// E.g., https://donnees.solutions.hydroquebec.com/donnees-ouvertes/data/json/pointeshivernales.json
+	PeakEventsUrl string `yaml:"peak_events_url"`
 
 	// The normal every day program.
 	NormalProgram WeeklyProgram `yaml:"normal_program"`
