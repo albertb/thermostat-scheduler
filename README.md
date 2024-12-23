@@ -1,58 +1,44 @@
-# Thermostat scheduler
+# Thermostat Scheduler
 
-Updates a [BlueLink Smart Connect](https://bluelinksmartconnect.com/) thermostat
-program to pre-heat before, and lower the heat during, periods of peak
-electricity demand.
+This project manages a [Braeburn BlueLink Smart Connect](https://bluelinksmartconnect.com/) thermostat program to
+optimize energy consumption during peak demand periods, potentially saving money on electricity bills using
+Hydro-Québec's
+[Winter Credit Option](https://www.hydroquebec.com/residential/customer-space/rates/winter-credit-option.html).
+It pre-heats before the peak demand period starts, then lowers the set temperature, and finally returns to the normal
+program once the peak demand period is over.
 
-In theory, it should work with any thermostat from Braeburn with the BlueLink
-Smart Connect feature, but I've only tested it with the thermostat I happen to
-have: [BlueLink Model 7205](https://www.braeburnonline.com/products/thermostat/7205).
+While only tested with the [BlueLink Model 7205](https://www.braeburnonline.com/products/thermostat/7205), it should
+in theory work with any BlueLink Smart Connect compatible thermostat.
 
 ![Picture of my thermostat](thermostat.png)
 
-## Goal
+## How it Works
 
-I created this to handle periods of peak demand with Hydro-Québec. They have a
-special rate called [Winter Credit Option](https://www.hydroquebec.com/residential/customer-space/rates/winter-credit-option.html)
-where they issue a small refund whenever you can reduce your electricity usage
-during periods of peak demand.
+This scheduler uses a configuration file (`config.yaml`) to define the regular thermostat program and the adjustments
+to make during peak demand events. Once a day, it downloads and caches a list of
+[upcoming peak demand periods](https://www.hydroquebec.com/documents-data/open-data/peak-demand-events/) from
+Hydro-Québec and automatically adjusts the thermostat program accordingly.
 
-## Usage
+## Setup
 
-There's two files that are used to determine how the thermostat should be
-programmed: `config.yaml` and `events.yaml`.
-
-In `config.yaml`, you define the normal program, and configure how periods of
-peak demand should be handled:
+**Configuration:** Create a `config.yaml` file based on the example below. This file defines your normal heating/cooling
+schedule and the temperature adjustments for peak events.
 
 ```yaml
-
 normal_program:
   sunday:
     morning: { time: 7h,  heat: 21, cool: 24 }
     day:     { time: 9h,  heat: 20, cool: 25 }
     evening: { time: 16h, heat: 21, cool: 24 }
     night:   { time: 21h, heat: 20, cool: 25 }
-  // ... all other days
+  # ... other days of the week
 
 peak_program:
-  // How long to pre-heat for before a peak period.
-  pre_heat_duration: 1h
-  // How much to pre-heat vs the normal temperature.
-  pre_heat_temp_offset: 1
-  // How much to lower the temperature during a peak period.
-  peak_temp_offset: -2
+  pre_heat_duration: 1h       # Time to pre-heat before peak
+  pre_heat_temp_offset: 1     # Temperature increase for pre-heating
+  peak_temp_offset: -2        # Temperature decrease during peak
 ```
 
-And in `events.yaml`, you add the dates and times of periods of peak demand:
-
-```yaml
-// January 10st 2024, from 6am to 9am, and 4pm to 8pm.
-- { date: 2024-01-10,
-    events: [{ start: 6h , end: 9h  },
-             { start: 16h, end: 20h }] }
-```
-
-Finally, run the binary before and after the peak period to update the
-thermostat program. Or better yet, run it every few hours in a cronjob, and
-just append to `events.yaml` whenever a new peak period is annouced.
+**Scheduling**: Set up a cron job or other scheduling mechanism to run the script regularly (e.g., every few hours) to
+ensure the program is updated in response to peak demand periods. Suggested cron times are 5am, 8am, 3pm, and 9pm to
+cover Hydro-Québec's typical peak demand periods.

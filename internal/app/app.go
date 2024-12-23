@@ -6,20 +6,20 @@ import (
 	"log"
 	"thermostat-scheduler/internal/client"
 	"thermostat-scheduler/internal/config"
-	"thermostat-scheduler/internal/event"
+	"thermostat-scheduler/internal/events"
 	"thermostat-scheduler/internal/program"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 )
 
-func Run(configReader io.Reader, eventsReader io.Reader, verbose, dryRun bool) error {
+func Run(configReader io.Reader, eventsCacheFilename string, eventsCacheTTL time.Duration, verbose, dryRun bool) error {
 	cfg, err := config.ReadConfig(configReader)
 	if err != nil {
 		return err
 	}
 
-	events, err := event.ReadPeakEvents(eventsReader)
+	events, err := events.GetPeakEvents(eventsCacheFilename, eventsCacheTTL)
 	if err != nil {
 		return err
 	}
