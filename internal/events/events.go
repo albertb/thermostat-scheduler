@@ -20,12 +20,14 @@ type PeakEvent struct {
 const winterPeakOfferURL = "https://donnees.solutions.hydroquebec.com/donnees-ouvertes/data/json/pointeshivernales.json"
 const relevantOffer = "CPC-D"
 
-func GetPeakEvents(cacheFilePath string, cacheTTL time.Duration) ([]PeakEvent, error) {
+func GetPeakEvents(cacheFilePath string, cacheTTL time.Duration, verbose bool) ([]PeakEvent, error) {
 	info, err := getCachedWinterPeakInfo(cacheFilePath, cacheTTL)
 	if err == nil {
 		return info.toPeakEvents(relevantOffer), nil
 	}
-	log.Println("failed to read cached winter peak info:", err)
+	if verbose {
+		log.Println("failed to read cached winter peak info:", err)
+	}
 
 	info, err = fetchWinterPeakInfo(winterPeakOfferURL)
 	if err != nil {

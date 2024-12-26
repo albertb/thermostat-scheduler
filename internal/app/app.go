@@ -19,7 +19,7 @@ func Run(configReader io.Reader, eventsCacheFilename string, eventsCacheTTL time
 		return err
 	}
 
-	events, err := events.GetPeakEvents(eventsCacheFilename, eventsCacheTTL)
+	events, err := events.GetPeakEvents(eventsCacheFilename, eventsCacheTTL, verbose)
 	if err != nil {
 		return err
 	}
