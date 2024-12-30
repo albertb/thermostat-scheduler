@@ -39,7 +39,13 @@ func GetPeakEvents(cacheFilePath string, cacheTTL time.Duration, verbose bool) (
 		log.Println("failed to write winter peak info cache:", err)
 	}
 
-	return info.toPeakEvents(relevantOffer), nil
+	events := info.toPeakEvents(relevantOffer)
+	for _, event := range events {
+		if event.Start.After(time.Now()) {
+			log.Println("upcoming peak event:", event)
+		}
+	}
+	return events, nil
 }
 
 type WinterPeakOffers struct {
