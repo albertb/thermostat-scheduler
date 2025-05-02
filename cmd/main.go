@@ -17,7 +17,7 @@ var configFile = flag.String("config", "",
 
 var eventsCacheFile = flag.String("events-cache", "",
 	"location of the peak events cache file; default ~/.cache/thermostat-scheduler/events.json")
-var eventsCacheTTL = flag.Duration("events-cache-ttl", time.Hour*25,
+var eventsCacheTTL = flag.Duration("events-cache-ttl", time.Hour*12,
 	"how long to locally cache the peak events file for")
 
 func getUserHomeDir() string {

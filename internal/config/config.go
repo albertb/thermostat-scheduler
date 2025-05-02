@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"thermostat-scheduler/internal/api"
 	"time"
 
@@ -41,6 +42,12 @@ type WeeklyProgram struct {
 	Thursday  DailyProgram
 	Friday    DailyProgram
 	Saturday  DailyProgram
+}
+
+// Returns the number of hours since midnight relative to |t|.
+func HoursFromMidnight(t time.Time) time.Duration {
+	midnight := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
+	return t.Sub(midnight)
 }
 
 // Returns the DailyProgram for the specified weekday.
@@ -176,10 +183,14 @@ func ReadConfig(reader io.Reader) (Config, error) {
 	err := yaml.NewDecoder(reader).Decode(&c)
 
 	if err != nil {
-		return c, err
+		return c, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	return validate(c)
+	c, err = validate(c)
+	if err != nil {
+		return c, fmt.Errorf("failed to validate config: %w", err)
+	}
+	return c, nil
 }
 
 func validate(c Config) (Config, error) {
@@ -188,11 +199,11 @@ func validate(c Config) (Config, error) {
 	}
 	err := validateWeeklyProgram(c.NormalProgram)
 	if err != nil {
-		return c, err
+		return c, fmt.Errorf("invalid weekly program: %w", err)
 	}
 	err = validatePeakProgram(c.PeakProgram)
 	if err != nil {
-		return c, err
+		return c, fmt.Errorf("invalid peak program: %w", err)
 	}
 	return c, nil
 }
@@ -293,4 +304,40 @@ func (de DayEvent) ToProgramHeatStringPart() string {
 func (de DayEvent) ToProgramCoolStringPart() string {
 	start := time.Time{}.Add(de.Time)
 	return fmt.Sprintf("%02d%02d%03d", start.Hour(), start.Minute(), int(de.Cool*10))
+}
+
+func ToWeeklyProgram(s api.StateData) WeeklyProgram {
+	return WeeklyProgram{
+		Monday:    parseDailyProgram(s.Program1),
+		Tuesday:   parseDailyProgram(s.Program2),
+		Wednesday: parseDailyProgram(s.Program3),
+		Thursday:  parseDailyProgram(s.Program4),
+		Friday:    parseDailyProgram(s.Program5),
+		Saturday:  parseDailyProgram(s.Program6),
+		Sunday:    parseDailyProgram(s.Program7),
+	}
+}
+
+func parseDailyProgram(s string) DailyProgram {
+	if len(s) != 56 {
+		return DailyProgram{}
+	}
+	return DailyProgram{
+		Morning: parseDayEvent(s[7*0:7*1], s[7*4:7*5]),
+		Day:     parseDayEvent(s[7*1:7*2], s[7*5:7*6]),
+		Evening: parseDayEvent(s[7*2:7*3], s[7*6:7*7]),
+		Night:   parseDayEvent(s[7*3:7*4], s[7*7:7*8]),
+	}
+}
+
+func parseDayEvent(heating string, cooling string) DayEvent {
+	hour, _ := strconv.Atoi(heating[0:2])
+	minute, _ := strconv.Atoi(heating[2:4])
+	heat, _ := strconv.Atoi(heating[4:7])
+	cool, _ := strconv.Atoi(cooling[4:7])
+	return DayEvent{
+		Time: time.Duration(hour)*time.Hour + time.Duration(minute)*time.Minute,
+		Heat: heat / 10,
+		Cool: cool / 10,
+	}
 }
