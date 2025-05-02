@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -55,13 +56,13 @@ func (c *Client) Login(username string, password string) error {
 
 	req, err := c.newRequest("POST", "rest-auth/login/", loginDetails)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create login HTTP request: %w", err)
 	}
 
 	var auth api.AuthenticationKey
 	_, err = c.do(req, &auth)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to login: %w", err)
 	}
 
 	token := "Token " + auth.Key
@@ -72,13 +73,13 @@ func (c *Client) Login(username string, password string) error {
 func (c *Client) Devices() ([]api.Device, error) {
 	req, err := c.newRequest("GET", "devices/", nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create device list HTTP request: %w", err)
 	}
 
 	var devices []api.Device
 	_, err = c.do(req, &devices)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get list of devices: %w", err)
 	}
 	return devices, nil
 }
@@ -87,13 +88,13 @@ func (c *Client) SetDeviceAttributes(deviceId string, data api.StateData) (api.D
 	req, err := c.newRequest("POST", "manage/"+deviceId+"/setstateattr/", data)
 
 	if err != nil {
-		return api.Device{}, err
+		return api.Device{}, fmt.Errorf("failed to create device update HTTP request: %w", err)
 	}
 
 	var updated api.Device
 	_, err = c.do(req, &updated)
 	if err != nil {
-		return api.Device{}, err
+		return api.Device{}, fmt.Errorf("failed to update device schedule: %w", err)
 	}
 
 	return updated, nil
@@ -108,7 +109,7 @@ func (c *Client) newRequest(method, path string, body any) (*http.Request, error
 		buf = new(bytes.Buffer)
 		err := json.NewEncoder(buf).Encode(body)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to marshal JSON: %w", err)
 		}
 	}
 

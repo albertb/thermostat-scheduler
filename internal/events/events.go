@@ -20,16 +20,18 @@ type PeakEvent struct {
 const winterPeakOfferURL = "https://donnees.solutions.hydroquebec.com/donnees-ouvertes/data/json/pointeshivernales.json"
 const relevantOffer = "CPC-D"
 
-func GetPeakEvents(cacheFilePath string, cacheTTL time.Duration) ([]PeakEvent, error) {
+func GetPeakEvents(cacheFilePath string, cacheTTL time.Duration, verbose bool) ([]PeakEvent, error) {
 	info, err := getCachedWinterPeakInfo(cacheFilePath, cacheTTL)
 	if err == nil {
 		return info.toPeakEvents(relevantOffer), nil
 	}
-	log.Println("failed to read cached winter peak info:", err)
+	if verbose {
+		log.Println("failed to read cached winter peak info:", err)
+	}
 
 	info, err = fetchWinterPeakInfo(winterPeakOfferURL)
 	if err != nil {
-		return []PeakEvent{}, err
+		return []PeakEvent{}, fmt.Errorf("failed to get winter peak info: %w", err)
 	}
 
 	err = writeWinterPeakInfoCache(cacheFilePath, info)
@@ -37,7 +39,13 @@ func GetPeakEvents(cacheFilePath string, cacheTTL time.Duration) ([]PeakEvent, e
 		log.Println("failed to write winter peak info cache:", err)
 	}
 
-	return info.toPeakEvents(relevantOffer), nil
+	events := info.toPeakEvents(relevantOffer)
+	for _, event := range events {
+		if event.Start.After(time.Now()) {
+			log.Println("upcoming peak event:", event)
+		}
+	}
+	return events, nil
 }
 
 type WinterPeakOffers struct {
@@ -91,7 +99,7 @@ func getCachedWinterPeakInfo(cacheFilePath string, cacheMaxAge time.Duration) (W
 func fetchWinterPeakInfo(url string) (WinterPeakOffers, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return WinterPeakOffers{}, err
+		return WinterPeakOffers{}, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -101,22 +109,16 @@ func fetchWinterPeakInfo(url string) (WinterPeakOffers, error) {
 
 	bytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return WinterPeakOffers{}, err
+		return WinterPeakOffers{}, fmt.Errorf("failed to read HTTP response: %w", err)
 	}
-
-	var offers WinterPeakOffers
-	if err := json.Unmarshal(bytes, &offers); err != nil {
-		return offers, err
-	}
-
-	return offers, nil
+	return parseWinterPeakInfo(bytes)
 }
 
 func parseWinterPeakInfo(data []byte) (WinterPeakOffers, error) {
 	var offers WinterPeakOffers
 	err := json.Unmarshal(data, &offers)
 	if err != nil {
-		return WinterPeakOffers{}, err
+		return WinterPeakOffers{}, fmt.Errorf("failed to parse winter peak info: %w", err)
 	}
 	return offers, nil
 }
@@ -129,8 +131,11 @@ func writeWinterPeakInfoCache(cacheFilePath string, offers WinterPeakOffers) err
 
 	bytes, err := json.Marshal(offers)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal winter peak info: %w", err)
 	}
 
-	return os.WriteFile(cacheFilePath, bytes, 0644)
+	if err := os.WriteFile(cacheFilePath, bytes, 0644); err != nil {
+		return fmt.Errorf("failed to write winter peak info cache: %w", err)
+	}
+	return nil
 }

@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"thermostat-scheduler/internal/client"
@@ -16,12 +17,12 @@ import (
 func Run(configReader io.Reader, eventsCacheFilename string, eventsCacheTTL time.Duration, verbose, dryRun bool) error {
 	cfg, err := config.ReadConfig(configReader)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read config: %w", err)
 	}
 
-	events, err := events.GetPeakEvents(eventsCacheFilename, eventsCacheTTL)
+	events, err := events.GetPeakEvents(eventsCacheFilename, eventsCacheTTL, verbose)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get peak events: %w", err)
 	}
 
 	// Based on the config and the list of peak events, assemble a program for
@@ -37,7 +38,7 @@ func Run(configReader io.Reader, eventsCacheFilename string, eventsCacheTTL time
 
 	devices, err := apiClient.Devices()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get list of devices: %w", err)
 	}
 
 	if len(devices) < 1 {
@@ -56,7 +57,12 @@ func Run(configReader io.Reader, eventsCacheFilename string, eventsCacheTTL time
 		return nil
 	}
 
-	log.Printf("The thermostat program differs from the one that was computed:\n%v", cmp.Diff(device.StateData, newStateData))
+	currentprogram := config.ToWeeklyProgram(device.StateData)
+	nextProgram := config.ToWeeklyProgram(newStateData)
+
+	diff := cmp.Diff(currentprogram, nextProgram)
+
+	log.Printf("The thermostat program differs from the one that was computed:\n%v", diff)
 	if dryRun {
 		log.Println("Dry-run; exiting early without any modifications.")
 		return nil
@@ -64,7 +70,7 @@ func Run(configReader io.Reader, eventsCacheFilename string, eventsCacheTTL time
 
 	_, err = apiClient.SetDeviceAttributes(device.UUID, newStateData)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to update device schedule: %w", err)
 	}
 	return nil
 }
