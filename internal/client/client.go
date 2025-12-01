@@ -30,7 +30,7 @@ func New() *Client {
 		userAgent: "Braeburn/13 CFNetwork/1406.0.4 Darwin/22.4.0",
 		httpClient: &http.Client{
 			Jar:       jar,
-			Timeout:   10 * time.Second,
+			Timeout:   30 * time.Second,
 			Transport: rt,
 		}, roundTripper: rt}
 
