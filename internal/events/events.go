@@ -17,29 +17,29 @@ type PeakEvent struct {
 	End   time.Time // End of the peak demand event
 }
 
-const winterPeakOfferURL = "https://donnees.solutions.hydroquebec.com/donnees-ouvertes/data/json/pointeshivernales.json"
+const winterPeakOfferURL = "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets/evenements-pointe/exports/json?lang=fr&refine=secteurclient%3A%22Residentiel%22&refine=offre%3A%22CPC-D%22&timezone=America%2FToronto"
 const relevantOffer = "CPC-D"
 
 func GetPeakEvents(cacheFilePath string, cacheTTL time.Duration, verbose bool) ([]PeakEvent, error) {
-	info, err := getCachedWinterPeakInfo(cacheFilePath, cacheTTL)
+	offers, err := readCachedWinterPeakOffers(cacheFilePath, cacheTTL)
 	if err == nil {
-		return info.toPeakEvents(relevantOffer), nil
+		return convertToPeakEvents(offers), nil
 	}
 	if verbose {
 		log.Println("failed to read cached winter peak info:", err)
 	}
 
-	info, err = fetchWinterPeakInfo(winterPeakOfferURL)
+	offers, err = fetchWinterPeakOffers(winterPeakOfferURL)
 	if err != nil {
 		return []PeakEvent{}, fmt.Errorf("failed to get winter peak info: %w", err)
 	}
 
-	err = writeWinterPeakInfoCache(cacheFilePath, info)
+	err = writeCachedWinterPeakOffers(cacheFilePath, offers)
 	if err != nil {
 		log.Println("failed to write winter peak info cache:", err)
 	}
 
-	events := info.toPeakEvents(relevantOffer)
+	events := convertToPeakEvents(offers)
 	for _, event := range events {
 		if event.Start.After(time.Now()) {
 			log.Println("upcoming peak event:", event)
@@ -48,26 +48,18 @@ func GetPeakEvents(cacheFilePath string, cacheTTL time.Duration, verbose bool) (
 	return events, nil
 }
 
-type WinterPeakOffers struct {
-	AvailableOffers []string `json:"offresDisponibles"`
-	Events          []Event  `json:"evenements"`
-}
-
-type Event struct {
+type WinterPeakOffer struct {
 	Offer    string    `json:"offre"`         // Offers in effect during the event
-	Start    time.Time `json:"dateDebut"`     // Start of the peak demand event
-	End      time.Time `json:"dateFin"`       // End of the peak demand event
-	Period   string    `json:"plageHoraire"`  // AM or PM
+	Start    time.Time `json:"datedebut"`     // Start of the peak demand event
+	End      time.Time `json:"datefin"`       // End of the peak demand event
+	Period   string    `json:"plagehoraire"`  // AM or PM
 	Duration string    `json:"duree"`         // Duration using IOS8601, e.g., PT03H00MS for 3hr
-	Sector   string    `json:"secteurClient"` // Résidentiel or Affaires
+	Sector   string    `json:"secteurclient"` // Résidentiel or Affaires
 }
 
-func (w WinterPeakOffers) toPeakEvents(offer string) []PeakEvent {
+func convertToPeakEvents(offers []WinterPeakOffer) []PeakEvent {
 	var events []PeakEvent
-	for _, e := range w.Events {
-		if e.Offer != offer {
-			continue
-		}
+	for _, e := range offers {
 		if e.Start.After(e.End) {
 			log.Println("Skipping invalid event:", e)
 		}
@@ -79,51 +71,55 @@ func (w WinterPeakOffers) toPeakEvents(offer string) []PeakEvent {
 	return events
 }
 
-func getCachedWinterPeakInfo(cacheFilePath string, cacheMaxAge time.Duration) (WinterPeakOffers, error) {
+func readCachedWinterPeakOffers(cacheFilePath string, cacheMaxAge time.Duration) ([]WinterPeakOffer, error) {
+	var offers []WinterPeakOffer
+
 	info, err := os.Stat(cacheFilePath)
 	if err != nil {
-		return WinterPeakOffers{}, err
+		return offers, err
 	}
 
 	if time.Since(info.ModTime()) > cacheMaxAge {
-		return WinterPeakOffers{}, fmt.Errorf("cache is too old")
+		return offers, fmt.Errorf("cache is too old")
 	}
 
 	bytes, err := os.ReadFile(cacheFilePath)
 	if err != nil {
-		return WinterPeakOffers{}, err
+		return offers, err
 	}
-	return parseWinterPeakInfo(bytes)
+	return parseWinterPeakOffers(bytes)
 }
 
-func fetchWinterPeakInfo(url string) (WinterPeakOffers, error) {
+func fetchWinterPeakOffers(url string) ([]WinterPeakOffer, error) {
+	var offers []WinterPeakOffer
+
 	resp, err := http.Get(url)
 	if err != nil {
-		return WinterPeakOffers{}, fmt.Errorf("HTTP request failed: %w", err)
+		return offers, fmt.Errorf("HTTP request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return WinterPeakOffers{}, fmt.Errorf("HTTP request failed with: %s", resp.Status)
+		return offers, fmt.Errorf("HTTP request failed with: %s", resp.Status)
 	}
 
 	bytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return WinterPeakOffers{}, fmt.Errorf("failed to read HTTP response: %w", err)
+		return offers, fmt.Errorf("failed to read HTTP response: %w", err)
 	}
-	return parseWinterPeakInfo(bytes)
+	return parseWinterPeakOffers(bytes)
 }
 
-func parseWinterPeakInfo(data []byte) (WinterPeakOffers, error) {
-	var offers WinterPeakOffers
+func parseWinterPeakOffers(data []byte) ([]WinterPeakOffer, error) {
+	var offers []WinterPeakOffer
 	err := json.Unmarshal(data, &offers)
 	if err != nil {
-		return WinterPeakOffers{}, fmt.Errorf("failed to parse winter peak info: %w", err)
+		return offers, fmt.Errorf("failed to parse winter peak info: %w", err)
 	}
 	return offers, nil
 }
 
-func writeWinterPeakInfoCache(cacheFilePath string, offers WinterPeakOffers) error {
+func writeCachedWinterPeakOffers(cacheFilePath string, offers []WinterPeakOffer) error {
 	dir := filepath.Dir(cacheFilePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("failed to create cache directory: %v", err)
