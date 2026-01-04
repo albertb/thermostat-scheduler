@@ -6,8 +6,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 )
 
@@ -18,25 +16,11 @@ type PeakEvent struct {
 }
 
 const winterPeakOfferURL = "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets/evenements-pointe/exports/json?lang=fr&refine=secteurclient%3A%22Residentiel%22&refine=offre%3A%22CPC-D%22&timezone=America%2FToronto"
-const relevantOffer = "CPC-D"
 
-func GetPeakEvents(cacheFilePath string, cacheTTL time.Duration, verbose bool) ([]PeakEvent, error) {
-	offers, err := readCachedWinterPeakOffers(cacheFilePath, cacheTTL)
-	if err == nil {
-		return convertToPeakEvents(offers), nil
-	}
-	if verbose {
-		log.Println("failed to read cached winter peak info:", err)
-	}
-
-	offers, err = fetchWinterPeakOffers(winterPeakOfferURL)
+func GetPeakEvents(verbose bool) ([]PeakEvent, error) {
+	offers, err := fetchWinterPeakOffers(winterPeakOfferURL)
 	if err != nil {
 		return []PeakEvent{}, fmt.Errorf("failed to get winter peak info: %w", err)
-	}
-
-	err = writeCachedWinterPeakOffers(cacheFilePath, offers)
-	if err != nil {
-		log.Println("failed to write winter peak info cache:", err)
 	}
 
 	events := convertToPeakEvents(offers)
@@ -71,25 +55,6 @@ func convertToPeakEvents(offers []WinterPeakOffer) []PeakEvent {
 	return events
 }
 
-func readCachedWinterPeakOffers(cacheFilePath string, cacheMaxAge time.Duration) ([]WinterPeakOffer, error) {
-	var offers []WinterPeakOffer
-
-	info, err := os.Stat(cacheFilePath)
-	if err != nil {
-		return offers, err
-	}
-
-	if time.Since(info.ModTime()) > cacheMaxAge {
-		return offers, fmt.Errorf("cache is too old")
-	}
-
-	bytes, err := os.ReadFile(cacheFilePath)
-	if err != nil {
-		return offers, err
-	}
-	return parseWinterPeakOffers(bytes)
-}
-
 func fetchWinterPeakOffers(url string) ([]WinterPeakOffer, error) {
 	var offers []WinterPeakOffer
 
@@ -117,21 +82,4 @@ func parseWinterPeakOffers(data []byte) ([]WinterPeakOffer, error) {
 		return offers, fmt.Errorf("failed to parse winter peak info: %w", err)
 	}
 	return offers, nil
-}
-
-func writeCachedWinterPeakOffers(cacheFilePath string, offers []WinterPeakOffer) error {
-	dir := filepath.Dir(cacheFilePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create cache directory: %v", err)
-	}
-
-	bytes, err := json.Marshal(offers)
-	if err != nil {
-		return fmt.Errorf("failed to marshal winter peak info: %w", err)
-	}
-
-	if err := os.WriteFile(cacheFilePath, bytes, 0644); err != nil {
-		return fmt.Errorf("failed to write winter peak info cache: %w", err)
-	}
-	return nil
 }

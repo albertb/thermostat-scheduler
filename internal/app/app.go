@@ -14,13 +14,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func Run(configReader io.Reader, eventsCacheFilename string, eventsCacheTTL time.Duration, verbose, dryRun bool) error {
+func Run(configReader io.Reader, verbose, dryRun bool) error {
 	cfg, err := config.ReadConfig(configReader)
 	if err != nil {
 		return fmt.Errorf("failed to read config: %w", err)
 	}
 
-	events, err := events.GetPeakEvents(eventsCacheFilename, eventsCacheTTL, verbose)
+	events, err := events.GetPeakEvents(verbose)
 	if err != nil {
 		return fmt.Errorf("failed to get peak events: %w", err)
 	}

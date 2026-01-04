@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"thermostat-scheduler/internal/app"
-	"time"
 )
 
 var verbose = flag.Bool("v", false, "whether to print verbose output")
@@ -14,11 +13,6 @@ var dryRun = flag.Bool("n", false, "whether to do a dry-run and avoid making any
 
 var configFile = flag.String("config", "",
 	"location of the config file; default ~/.config/thermostat-scheduler/config.yaml")
-
-var eventsCacheFile = flag.String("events-cache", "",
-	"location of the peak events cache file; default ~/.cache/thermostat-scheduler/events.json")
-var eventsCacheTTL = flag.Duration("events-cache-ttl", time.Hour*12,
-	"how long to locally cache the peak events file for")
 
 func getUserHomeDir() string {
 	home, err := os.UserHomeDir()
@@ -35,13 +29,6 @@ func getConfigFileLocation() string {
 	return filepath.Join(getUserHomeDir(), ".config", "thermostat-scheduler", "config.yaml")
 }
 
-func getEventsCacheFileLocation() string {
-	if len(*eventsCacheFile) > 0 {
-		return *eventsCacheFile
-	}
-	return filepath.Join(getUserHomeDir(), ".cache", "thermostat-scheduler", "events.json")
-}
-
 func main() {
 	flag.Parse()
 
@@ -50,9 +37,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	eventsCacheFilename := getEventsCacheFileLocation()
-
-	err = app.Run(configFile, eventsCacheFilename, *eventsCacheTTL, *verbose, *dryRun)
+	err = app.Run(configFile, *verbose, *dryRun)
 	if err != nil {
 		log.Fatal(err)
 	}
