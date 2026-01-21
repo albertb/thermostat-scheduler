@@ -20,7 +20,7 @@ func Run(configReader io.Reader, verbose, dryRun bool) error {
 		return fmt.Errorf("failed to read config: %w", err)
 	}
 
-	events, err := events.GetPeakEvents(verbose)
+	events, err := events.GetPeakEvents(cfg.PeakEventsUrl, verbose)
 	if err != nil {
 		return fmt.Errorf("failed to get peak events: %w", err)
 	}

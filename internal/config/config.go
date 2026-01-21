@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strconv"
 	"thermostat-scheduler/internal/api"
 	"time"
@@ -196,6 +197,9 @@ func ReadConfig(reader io.Reader) (Config, error) {
 func validate(c Config) (Config, error) {
 	if len(c.Username) < 1 || len(c.Password) < 1 {
 		return c, errors.New("username and password are required")
+	}
+	if _, err := url.ParseRequestURI(c.PeakEventsUrl); err != nil {
+		return c, fmt.Errorf("invalid peak_events_url: %w", err)
 	}
 	err := validateWeeklyProgram(c.NormalProgram)
 	if err != nil {

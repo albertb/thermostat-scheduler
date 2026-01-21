@@ -2,6 +2,9 @@
 username: user@example.org
 password: password
 
+peak_events_url: "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets/evenements-pointe/exports/json?lang=fr&refine=secteurclient%3A%22Residentiel%22&refine=offre%3A%22CPC-D%22&timezone=America%2FToronto"
+
+
 # We use the same program every day, but this can easily be modified to better
 # suit your needs.
 normal_program:

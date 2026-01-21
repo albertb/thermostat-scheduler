@@ -15,10 +15,10 @@ type PeakEvent struct {
 	End   time.Time // End of the peak demand event
 }
 
-const winterPeakOfferURL = "https://donnees.hydroquebec.com/api/explore/v2.1/catalog/datasets/evenements-pointe/exports/json?lang=fr&refine=secteurclient%3A%22Residentiel%22&refine=offre%3A%22CPC-D%22&timezone=America%2FToronto"
 
-func GetPeakEvents(verbose bool) ([]PeakEvent, error) {
-	offers, err := fetchWinterPeakOffers(winterPeakOfferURL)
+
+func GetPeakEvents(url string, verbose bool) ([]PeakEvent, error) {
+	offers, err := fetchWinterPeakOffers(url)
 	if err != nil {
 		return []PeakEvent{}, fmt.Errorf("failed to get winter peak info: %w", err)
 	}
