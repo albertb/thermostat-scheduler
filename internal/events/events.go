@@ -23,10 +23,20 @@ func GetPeakEvents(verbose bool) ([]PeakEvent, error) {
 		return []PeakEvent{}, fmt.Errorf("failed to get winter peak info: %w", err)
 	}
 
+	seenEvents, err := loadSeenEvents()
+	if err != nil {
+		return []PeakEvent{}, fmt.Errorf("failed to load seen events: %w", err)
+	}
+
 	events := convertToPeakEvents(offers)
 	for _, event := range events {
 		if event.Start.After(time.Now()) {
-			log.Println("upcoming peak event:", event)
+			if _, seen := seenEvents[eventID(event)]; !seen {
+				log.Println("upcoming peak event:", event)
+				if err := markEventAsSeen(event); err != nil {
+					log.Printf("failed to mark event as seen: %v", err)
+				}
+			}
 		}
 	}
 	return events, nil
