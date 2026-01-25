@@ -1,22 +1,33 @@
 package events
 
 import (
-	"os"
 	"testing"
 	"time"
 )
 
-func TestEventCache(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "cache-test")
-	if err != nil {
-		t.Fatalf("failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tmpDir)
+type inMemoryStore struct {
+	events map[string]struct{}
+}
 
-	// monkey patch the cache dir functions
-	oldCacheDirFn := getCacheDir
-	getCacheDir = func() (string, error) { return tmpDir, nil }
-	defer func() { getCacheDir = oldCacheDirFn }()
+func (s *inMemoryStore) Load() (map[string]struct{}, error) {
+	return s.events, nil
+}
+
+func (s *inMemoryStore) Save(id string) error {
+	s.events[id] = struct{}{}
+	return nil
+}
+
+func NewInMemoryCache() *Cache {
+	return &Cache{
+		store: &inMemoryStore{
+			events: make(map[string]struct{}),
+		},
+	}
+}
+
+func TestEventCache(t *testing.T) {
+	cache := NewInMemoryCache()
 
 	event := PeakEvent{
 		Start: time.Now(),
@@ -24,7 +35,7 @@ func TestEventCache(t *testing.T) {
 	}
 
 	// 1. Test that the cache is empty
-	seenEvents, err := loadSeenEvents()
+	seenEvents, err := cache.loadSeenEvents()
 	if err != nil {
 		t.Fatalf("failed to load seen events: %v", err)
 	}
@@ -33,12 +44,12 @@ func TestEventCache(t *testing.T) {
 	}
 
 	// 2. Test that we can mark an event as seen
-	if err := markEventAsSeen(event); err != nil {
+	if err := cache.markEventAsSeen(event); err != nil {
 		t.Fatalf("failed to mark event as seen: %v", err)
 	}
 
 	// 3. Test that the event is now in the cache
-	seenEvents, err = loadSeenEvents()
+	seenEvents, err = cache.loadSeenEvents()
 	if err != nil {
 		t.Fatalf("failed to load seen events: %v", err)
 	}

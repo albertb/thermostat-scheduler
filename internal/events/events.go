@@ -9,21 +9,18 @@ import (
 	"time"
 )
 
-// Specifies a peak demand event.
-type PeakEvent struct {
-	Start time.Time // Start of the peak demand event
-	End   time.Time // End of the peak demand event
-}
-
-
-
 func GetPeakEvents(url string, verbose bool) ([]PeakEvent, error) {
 	offers, err := fetchWinterPeakOffers(url)
 	if err != nil {
 		return []PeakEvent{}, fmt.Errorf("failed to get winter peak info: %w", err)
 	}
 
-	seenEvents, err := loadSeenEvents()
+	cache, err := NewCache()
+	if err != nil {
+		return []PeakEvent{}, fmt.Errorf("failed to create cache: %w", err)
+	}
+
+	seenEvents, err := cache.loadSeenEvents()
 	if err != nil {
 		return []PeakEvent{}, fmt.Errorf("failed to load seen events: %w", err)
 	}
@@ -33,7 +30,7 @@ func GetPeakEvents(url string, verbose bool) ([]PeakEvent, error) {
 		if event.Start.After(time.Now()) {
 			if _, seen := seenEvents[eventID(event)]; !seen {
 				log.Println("upcoming peak event:", event)
-				if err := markEventAsSeen(event); err != nil {
+				if err := cache.markEventAsSeen(event); err != nil {
 					log.Printf("failed to mark event as seen: %v", err)
 				}
 			}

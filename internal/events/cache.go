@@ -4,32 +4,38 @@ import (
 	"bufio"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
-var getCacheDir = func() (string, error) {
+type Cache struct {
+	store store
+}
+
+func NewCache() (*Cache, error) {
 	cacheDir, err := os.UserCacheDir()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return filepath.Join(cacheDir, "thermostat-scheduler"), nil
+	return &Cache{
+		store: &fileStore{
+			path: filepath.Join(cacheDir, "thermostat-scheduler", "seen_events"),
+		},
+	}, nil
 }
 
-func getCacheFile() (string, error) {
-	cacheDir, err := getCacheDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(cacheDir, "seen_events"), nil
+type store interface {
+	Load() (map[string]struct{}, error)
+	Save(id string) error
 }
 
-func loadSeenEvents() (map[string]bool, error) {
-	seenEvents := make(map[string]bool)
-	cacheFile, err := getCacheFile()
-	if err != nil {
-		return seenEvents, err
-	}
+type fileStore struct {
+	path string
+}
 
-	file, err := os.Open(cacheFile)
+func (s *fileStore) Load() (map[string]struct{}, error) {
+	seenEvents := make(map[string]struct{})
+	file, err := os.Open(s.path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return seenEvents, nil
@@ -40,36 +46,41 @@ func loadSeenEvents() (map[string]bool, error) {
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		seenEvents[scanner.Text()] = true
+		seenEvents[scanner.Text()] = struct{}{}
 	}
 
 	return seenEvents, scanner.Err()
 }
 
-func eventID(event PeakEvent) string {
-	return event.Start.String() + event.End.String()
-}
-
-func markEventAsSeen(event PeakEvent) error {
-	cacheDir, err := getCacheDir()
-	if err != nil {
+func (s *fileStore) Save(id string) error {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0755); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		return err
-	}
-
-	cacheFile, err := getCacheFile()
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(cacheFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-
-	_, err = file.WriteString(eventID(event) + "\n")
+	_, err = file.WriteString(id + "\n")
 	return err
+}
+
+type PeakEvent struct {
+	Start time.Time
+	End   time.Time
+}
+
+func eventID(event PeakEvent) string {
+	var b strings.Builder
+	b.WriteString(event.Start.Format(time.RFC3339))
+	b.WriteString(event.End.Format(time.RFC3339))
+	return b.String()
+}
+
+func (c *Cache) loadSeenEvents() (map[string]struct{}, error) {
+	return c.store.Load()
+}
+
+func (c *Cache) markEventAsSeen(event PeakEvent) error {
+	return c.store.Save(eventID(event))
 }
